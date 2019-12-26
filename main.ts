@@ -1,10 +1,38 @@
 let motorOnL = 0;
 let motorOnR = 0;
-let lastLedX = 100
-let lastLedY = 100
+
 const motorMax = 100
 const accelMax = 500    // full range is 1023
-const screenMax = 2
+
+class Screen {
+    private lastLedX: number = -1
+    private lastLedY: number = -1
+    private readonly screenMin: number = 0;
+    private readonly screenMax: number = 4;
+
+    constructor() {
+    }
+
+    private scale(accel: number) {
+
+        accel = Math.clamp(-accelMax, accelMax, accel)
+        let screen = pins.map(accel, -accelMax, accelMax, this.screenMin, this.screenMax)
+
+        return screen
+    }
+
+    update(accelX: number, accelY: number) {
+
+        const ledX = Math.round(this.scale(accelX))
+        const ledY = Math.round(this.scale(accelY))
+        if (ledX != this.lastLedX || ledY != this.lastLedY) {
+            led.plot(ledX, ledY)
+            led.unplot(this.lastLedX, this.lastLedY)
+            this.lastLedX = ledX
+            this.lastLedY = ledY
+        }
+    }
+}
 
 input.onGesture(Gesture.Shake, () => {
     runTests()
@@ -31,8 +59,10 @@ control.onEvent(EventBusSource.MICROBIT_ID_ACCELEROMETER, EventBusValue.MICROBIT
 })
 
 control.inBackground(() => {
+
+    let screen = new Screen;
     while (true) {
-        updateScreen(input.acceleration(Dimension.X), input.acceleration(Dimension.Y))
+        screen.update(input.acceleration(Dimension.X), input.acceleration(Dimension.Y))
         basic.pause(100)
     }
 })
@@ -79,26 +109,6 @@ function updateMotor(accelX: number, accelY: number) {
     //serial.writeValue("speedR", speedR)
     speedR *= motorOnR
     radio.sendValue("speedR", speedR)
-}
-
-function accelToScreen(accel: number) {
-
-    accel = Math.clamp(-accelMax, accelMax, accel)
-    let screen = pins.map(accel, -accelMax, accelMax, 0, 4)
-
-    return screen
-}
-
-function updateScreen(accelX: number, accelY: number) {
-
-    let ledX = accelToScreen(accelX)
-    let ledY = accelToScreen(accelY)
-    if (ledX != lastLedX || ledY != lastLedY) {
-        led.plot(ledX, ledY)
-        led.unplot(lastLedX, lastLedY)
-        lastLedX = ledX
-        lastLedY = ledY
-    }
 }
 
 function runTests() {
